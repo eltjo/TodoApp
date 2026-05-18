@@ -20,9 +20,19 @@
 
 <!-- Lijst -->
 @{
-    var open = Items.Where(t => !t.IsCompleted).ToList();
-    var done = Items.Where(t => t.IsCompleted).ToList();
+    var filtered = string.IsNullOrWhiteSpace(SearchQuery)
+        ? Items
+        : Items.Where(t => t.Title.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase)).ToList();
+    var open = filtered.Where(t => !t.IsCompleted).ToList();
+    var done = filtered.Where(t => t.IsCompleted).ToList();
 }
+
+<div style="margin-bottom:16px; max-width:500px;">
+    <input @bind="SearchQuery"
+           @bind:event="oninput"
+           placeholder="Zoek op titel..."
+           style="width:100%; padding:8px 12px; border:1px solid #d0d7de; border-radius:6px; font-size:0.95rem;" />
+</div>
 
 @if (!open.Any() && !done.Any())
 {
@@ -69,6 +79,7 @@
 
 @code {
     private string NewTitle = string.Empty;
+    private string SearchQuery = string.Empty;
     private IReadOnlyList<TodoApp.Models.TodoItem> Items = [];
 
     protected override void OnInitialized()
