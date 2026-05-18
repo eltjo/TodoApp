@@ -20,9 +20,9 @@
 
 <!-- Lijst -->
 @{
-    var filtered = string.IsNullOrWhiteSpace(SearchQuery)
+    var filtered = (string.IsNullOrWhiteSpace(SearchQuery)
         ? Items
-        : Items.Where(t => (t.Title ?? string.Empty).Contains(SearchQuery, StringComparison.OrdinalIgnoreCase));
+        : Items.Where(t => (t.Title ?? string.Empty).Contains(SearchQuery, StringComparison.OrdinalIgnoreCase))).ToList();
     var open = filtered.Where(t => !t.IsCompleted).ToList();
     var done = filtered.Where(t => t.IsCompleted).ToList();
 }
