@@ -4,6 +4,35 @@
 
 <h2>GitHub Issues — eltjo/TodoApp</h2>
 
+<!-- Nieuw issue formulier -->
+<details style="margin-bottom:20px; border:1px solid #d0d7de; border-radius:8px; padding:16px;">
+    <summary style="cursor:pointer; font-weight:600; font-size:1rem;">＋ Nieuw issue aanmaken</summary>
+    <div style="margin-top:14px; display:flex; flex-direction:column; gap:10px; max-width:600px;">
+        <input @bind="NewTitle"
+               placeholder="Titel"
+               style="padding:8px 10px; border:1px solid #d0d7de; border-radius:6px; font-size:0.95rem;" />
+        <textarea @bind="NewBody"
+                  placeholder="Beschrijving (optioneel)"
+                  rows="4"
+                  style="padding:8px 10px; border:1px solid #d0d7de; border-radius:6px; font-size:0.95rem; resize:vertical;" />
+        @if (CreateError is not null)
+        {
+            <p style="color:red; margin:0;">⚠️ @CreateError</p>
+        }
+        @if (CreateSuccess is not null)
+        {
+            <p style="color:green; margin:0;">✓ Issue aangemaakt: <a href="@CreateSuccess" target="_blank">@CreateSuccess</a></p>
+        }
+        <div>
+            <button @onclick="CreateIssue" disabled="@(Creating || string.IsNullOrWhiteSpace(NewTitle))"
+                    style="padding:7px 18px; background:#2da44e; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.95rem;">
+                @(Creating ? "Aanmaken..." : "Issue aanmaken")
+            </button>
+        </div>
+    </div>
+</details>
+
+<!-- Filter & vernieuwen -->
 <div style="display:flex; gap:12px; margin-bottom:16px; align-items:center;">
     <select @bind="SelectedState" style="padding:6px 10px; border-radius:6px;">
         <option value="open">Open</option>
@@ -64,6 +93,12 @@ else
     private bool Loading = false;
     private string? ErrorMessage;
 
+    private string NewTitle = string.Empty;
+    private string NewBody = string.Empty;
+    private bool Creating = false;
+    private string? CreateError;
+    private string? CreateSuccess;
+
     protected override async Task OnInitializedAsync()
         => await LoadIssues();
 
@@ -83,6 +118,29 @@ else
         finally
         {
             Loading = false;
+        }
+    }
+
+    private async Task CreateIssue()
+    {
+        Creating = true;
+        CreateError = null;
+        CreateSuccess = null;
+        try
+        {
+            var url = await Gh.CreateIssueAsync(NewTitle, NewBody);
+            CreateSuccess = url;
+            NewTitle = string.Empty;
+            NewBody = string.Empty;
+            await LoadIssues();
+        }
+        catch (Exception ex)
+        {
+            CreateError = ex.Message;
+        }
+        finally
+        {
+            Creating = false;
         }
     }
 }

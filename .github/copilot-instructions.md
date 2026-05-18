@@ -2,57 +2,59 @@
 
 ## Project
 
-.NET MAUI desktop todo app for macOS. Uses `gh` CLI for GitHub integrations (issues, releases, workflow status). Local todo data is persisted on device; GitHub is used for developer workflow, not as a data backend.
+.NET 10 Blazor Server todo app, running locally in the browser. Uses `gh` CLI for GitHub integrations (list issues, create issues, releases, workflow status). Local todo data is persisted on disk; GitHub is used for developer workflow features.
 
 ## Build & Run
 
 ```bash
-# Build for macOS (Mac Catalyst)
-dotnet build -f net10.0-maccatalyst
+# Run locally (opens on http://localhost:5291)
+dotnet run --launch-profile http
 
-# Run on macOS
-dotnet run -f net10.0-maccatalyst
-
-# Build release
-dotnet publish -f net10.0-maccatalyst -c Release
+# Build
+dotnet build
 ```
-
-## gh CLI Integrations
-
-This project uses `gh` as a first-class tool. Key patterns used throughout the codebase:
-
-```bash
-# Check auth status (used in app startup diagnostic)
-gh auth status
-
-# Create a bug report issue
-gh issue create --label bug --title "..." --body "..."
-
-# List open issues
-gh issue list --state open
-
-# View CI status
-gh run list --limit 5
-
-# Create a release
-gh release create v1.0.0 --generate-notes
-```
-
-When adding new GitHub integrations, prefer `gh` CLI commands (via `Process.Start`) over direct REST/GraphQL API calls.
 
 ## Architecture
 
-- **`MainPage.xaml` / `MainPage.xaml.cs`** — Main UI: todo list view and add/complete/delete actions
-- **`AppShell.xaml`** — Shell navigation (single-page for now, extend here for multi-page)
-- **`MauiProgram.cs`** — App bootstrap, DI registration
-- **`Platforms/MacCatalyst/`** — macOS-specific entry point and entitlements
+```
+Components/
+  Pages/          # Blazor pages (@page "/route")
+    Issues.razor  # GitHub Issues viewer + create form
+    Home.razor    # Landing page
+  Layout/
+    MainLayout.razor  # Nav bar + page wrapper
+Models/
+  GitHubIssue.cs  # Issue model returned by GhService
+Services/
+  GhService.cs    # All gh CLI calls via System.Diagnostics.Process
+```
 
-Todo items are stored locally (JSON file in `AppDataDirectory`). The `TodoService` (to be created under `Services/`) owns all persistence logic — UI never reads/writes storage directly.
+- **`GhService`** is registered as a singleton. All `gh` commands go through `RunGhAsync()` — never call `Process.Start` directly in a component.
+- **`GhService.CreateIssueAsync(title, body)`** runs `gh issue create` and returns the new issue URL.
+- **`GhService.GetIssuesAsync(state)`** runs `gh issue list --json` and deserializes to `List<GitHubIssue>`.
+- Components inject `GhService` and call it directly — no intermediate ViewModel layer.
+
+## gh CLI Integrations
+
+When adding new `gh` integrations, add a method to `GhService` and call `RunGhAsync()`:
+
+```bash
+# Patterns already in use:
+gh issue list --repo owner/repo --state open --limit 50 --json number,title,state,url,body
+gh issue create --repo owner/repo --title "..." --body "..."
+
+# Useful patterns to add:
+gh run list --limit 5 --json name,status,conclusion
+gh release create v1.0.0 --generate-notes
+gh issue close <number>
+```
+
+Always use `--json` flags when output needs to be parsed. Use `EscapeArg()` in `GhService` when interpolating user input into CLI arguments.
 
 ## Conventions
 
-- Target framework for macOS is `net10.0-maccatalyst` — always specify `-f net10.0-maccatalyst` when building/running
-- XAML for layout, code-behind only for event wiring; business logic goes in `Services/`
-- New pages go in `Pages/`, new models in `Models/`, services in `Services/`
-- Use `Shell.Current.GoToAsync("//routename")` for navigation
-- `gh` CLI calls from C# use `System.Diagnostics.Process` with `RedirectStandardOutput = true`
+- New pages go in `Components/Pages/`, new models in `Models/`, services in `Services/`
+- `@rendermode InteractiveServer` is required on every interactive page
+- Loading/error/success state pattern in components: use `bool Loading`, `string? ErrorMessage`, `string? SuccessMessage` fields
+- After a mutation (create/close/etc.), always call `LoadIssues()` to refresh the list
+- String escaping for `gh` args: use `GhService.EscapeArg()` — never interpolate raw user input

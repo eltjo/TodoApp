@@ -30,6 +30,16 @@ public class GhService
         }).ToList();
     }
 
+    public async Task<string> CreateIssueAsync(string title, string body)
+    {
+        var arguments = $"issue create --repo {RepoOwner}/{RepoName} --title \"{EscapeArg(title)}\" --body \"{EscapeArg(body)}\"";
+        var output = await RunGhAsync(arguments);
+        return output.Trim(); // returns the issue URL
+    }
+
+    private static string EscapeArg(string value)
+        => value.Replace("\\", "\\\\").Replace("\"", "\\\"");
+
     public async Task OpenIssueInBrowserAsync(string url)
     {
         await RunGhAsync($"browse {url}");
