@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using TodoApp.Components;
 using TodoApp.Services;
 
@@ -8,6 +9,10 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services.AddSingleton<GhService>();
+
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(
+        Path.Combine(builder.Environment.ContentRootPath, ".dataprotection-keys")));
 
 var app = builder.Build();
 
