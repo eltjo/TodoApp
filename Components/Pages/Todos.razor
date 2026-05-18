@@ -1,0 +1,101 @@
+@page "/todos"
+@rendermode InteractiveServer
+@inject TodoApp.Services.TodoService TodoSvc
+
+<h2>Mijn Todo's</h2>
+
+<!-- Invoer -->
+<div style="display:flex; gap:10px; margin-bottom:24px; max-width:500px;">
+    <input @bind="NewTitle"
+           @bind:event="oninput"
+           @onkeydown="OnKeyDown"
+           placeholder="Nieuwe todo..."
+           style="flex:1; padding:8px 12px; border:1px solid #d0d7de; border-radius:6px; font-size:0.95rem;" />
+    <button @onclick="AddTodo"
+            disabled="@string.IsNullOrWhiteSpace(NewTitle)"
+            style="padding:8px 16px; background:#0969da; color:white; border:none; border-radius:6px; cursor:pointer;">
+        Toevoegen
+    </button>
+</div>
+
+<!-- Lijst -->
+@{
+    var open = Items.Where(t => !t.IsCompleted).ToList();
+    var done = Items.Where(t => t.IsCompleted).ToList();
+}
+
+@if (!open.Any() && !done.Any())
+{
+    <p style="color:gray;">Nog geen todos. Voeg er een toe!</p>
+}
+
+@if (open.Any())
+{
+    <ul style="list-style:none; padding:0; max-width:600px;">
+        @foreach (var item in open)
+        {
+            <li style="display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #eee;">
+                <input type="checkbox" @onchange="() => CompleteTodo(item.Id)"
+                       style="width:18px; height:18px; cursor:pointer;" />
+                <span style="flex:1; font-size:0.95rem;">@item.Title</span>
+                <button @onclick="() => DeleteTodo(item.Id)"
+                        style="background:none; border:none; color:#cf222e; cursor:pointer; font-size:1rem;" title="Verwijderen">
+                    🗑
+                </button>
+            </li>
+        }
+    </ul>
+}
+
+@if (done.Any())
+{
+    <details style="margin-top:20px; max-width:600px;">
+        <summary style="cursor:pointer; color:gray; font-size:0.9rem;">Voltooid (@done.Count)</summary>
+        <ul style="list-style:none; padding:0; margin-top:8px;">
+            @foreach (var item in done)
+            {
+                <li style="display:flex; align-items:center; gap:12px; padding:8px 0; border-bottom:1px solid #eee; opacity:0.6;">
+                    <input type="checkbox" checked disabled style="width:18px; height:18px;" />
+                    <span style="flex:1; text-decoration:line-through; font-size:0.95rem;">@item.Title</span>
+                    <button @onclick="() => DeleteTodo(item.Id)"
+                            style="background:none; border:none; color:#cf222e; cursor:pointer; font-size:1rem;" title="Verwijderen">
+                        🗑
+                    </button>
+                </li>
+            }
+        </ul>
+    </details>
+}
+
+@code {
+    private string NewTitle = string.Empty;
+    private IReadOnlyList<TodoApp.Models.TodoItem> Items = [];
+
+    protected override void OnInitialized()
+        => Items = TodoSvc.GetAll();
+
+    private void AddTodo()
+    {
+        if (string.IsNullOrWhiteSpace(NewTitle)) return;
+        TodoSvc.Add(NewTitle);
+        NewTitle = string.Empty;
+        Items = TodoSvc.GetAll();
+    }
+
+    private void CompleteTodo(Guid id)
+    {
+        TodoSvc.Complete(id);
+        Items = TodoSvc.GetAll();
+    }
+
+    private void DeleteTodo(Guid id)
+    {
+        TodoSvc.Delete(id);
+        Items = TodoSvc.GetAll();
+    }
+
+    private void OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") AddTodo();
+    }
+}
