@@ -1,0 +1,6 @@
+# Ignore build output
+bin/
+obj/
+*.user
+.vs/
+.DS_Store
