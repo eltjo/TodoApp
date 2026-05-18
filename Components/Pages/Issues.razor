@@ -1,0 +1,88 @@
+@page "/issues"
+@rendermode InteractiveServer
+@inject TodoApp.Services.GhService Gh
+
+<h2>GitHub Issues — eltjo/TodoApp</h2>
+
+<div style="display:flex; gap:12px; margin-bottom:16px; align-items:center;">
+    <select @bind="SelectedState" style="padding:6px 10px; border-radius:6px;">
+        <option value="open">Open</option>
+        <option value="closed">Closed</option>
+        <option value="all">Alle</option>
+    </select>
+    <button @onclick="LoadIssues" disabled="@Loading" style="padding:6px 14px; border-radius:6px; cursor:pointer;">
+        @(Loading ? "Laden..." : "↻ Vernieuwen")
+    </button>
+</div>
+
+@if (ErrorMessage is not null)
+{
+    <p style="color:red;">⚠️ @ErrorMessage</p>
+}
+else if (IssueList is null)
+{
+    <p>Laden...</p>
+}
+else if (!IssueList.Any())
+{
+    <p>Geen issues gevonden.</p>
+}
+else
+{
+    <table style="width:100%; border-collapse:collapse;">
+        <thead>
+            <tr style="border-bottom:2px solid #ccc; text-align:left;">
+                <th style="padding:8px 12px;">#</th>
+                <th style="padding:8px 12px;">Titel</th>
+                <th style="padding:8px 12px;">Status</th>
+                <th style="padding:8px 12px;"></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var issue in IssueList)
+            {
+                <tr style="border-bottom:1px solid #eee;">
+                    <td style="padding:8px 12px; color:gray;">@issue.Number</td>
+                    <td style="padding:8px 12px; font-weight:500;">@issue.Title</td>
+                    <td style="padding:8px 12px;">
+                        <span style="background:@(issue.State == "OPEN" ? "#2da44e" : "#8250df"); color:white; padding:2px 10px; border-radius:12px; font-size:0.8rem;">
+                            @issue.State.ToLower()
+                        </span>
+                    </td>
+                    <td style="padding:8px 12px;">
+                        <a href="@issue.Url" target="_blank" style="color:#0969da; text-decoration:none;">Bekijk →</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<TodoApp.Models.GitHubIssue>? IssueList;
+    private string SelectedState = "open";
+    private bool Loading = false;
+    private string? ErrorMessage;
+
+    protected override async Task OnInitializedAsync()
+        => await LoadIssues();
+
+    private async Task LoadIssues()
+    {
+        Loading = true;
+        ErrorMessage = null;
+        IssueList = null;
+        try
+        {
+            IssueList = await Gh.GetIssuesAsync(SelectedState);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            Loading = false;
+        }
+    }
+}
