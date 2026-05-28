@@ -5,12 +5,19 @@
 <h2>Mijn Todo's</h2>
 
 <!-- Invoer -->
-<div style="display:flex; gap:10px; margin-bottom:24px; max-width:500px;">
+<div style="display:flex; gap:10px; margin-bottom:24px; max-width:620px;">
     <input @bind="NewTitle"
            @bind:event="oninput"
            @onkeydown="OnKeyDown"
            placeholder="Nieuwe todo..."
            style="flex:1; padding:8px 12px; border:1px solid #d0d7de; border-radius:6px; font-size:0.95rem;" />
+    <select @bind="NewPriority"
+            aria-label="Prioriteit"
+            style="padding:8px 12px; border:1px solid #d0d7de; border-radius:6px; font-size:0.95rem; cursor:pointer;">
+        <option value="@TodoPriority.Low">Laag</option>
+        <option value="@TodoPriority.Medium">Middel</option>
+        <option value="@TodoPriority.High">Hoog</option>
+    </select>
     <button @onclick="AddTodo"
             disabled="@string.IsNullOrWhiteSpace(NewTitle)"
             style="padding:8px 16px; background:#0969da; color:white; border:none; border-radius:6px; cursor:pointer;">
@@ -23,7 +30,10 @@
     var filtered = (string.IsNullOrWhiteSpace(SearchQuery)
         ? Items
         : Items.Where(t => (t.Title ?? string.Empty).Contains(SearchQuery, StringComparison.OrdinalIgnoreCase))).ToList();
-    var open = filtered.Where(t => !t.IsCompleted).ToList();
+    var open = filtered.Where(t => !t.IsCompleted)
+        .OrderByDescending(t => t.Priority)
+        .ThenBy(t => t.CreatedAt)
+        .ToList();
     var done = filtered.Where(t => t.IsCompleted).ToList();
 }
 
@@ -51,6 +61,10 @@
                 <input type="checkbox" @onchange="() => CompleteTodo(item.Id)"
                        style="width:18px; height:18px; cursor:pointer;" />
                 <span style="flex:1; font-size:0.95rem;">@item.Title</span>
+                <span style="font-size:0.7rem; font-weight:600; padding:2px 8px; border-radius:10px; color:white; background:@PriorityColor(item.Priority);"
+                      title="Prioriteit">
+                    @PriorityLabel(item.Priority)
+                </span>
                 <button @onclick="() => DeleteTodo(item.Id)"
                         style="background:none; border:none; color:#cf222e; cursor:pointer; font-size:1rem;" title="Verwijderen">
                     🗑
@@ -82,6 +96,7 @@
 
 @code {
     private string NewTitle = string.Empty;
+    private TodoPriority NewPriority = TodoPriority.Medium;
     private string SearchQuery = string.Empty;
     private IReadOnlyList<TodoApp.Models.TodoItem> Items = [];
 
@@ -91,10 +106,25 @@
     private void AddTodo()
     {
         if (string.IsNullOrWhiteSpace(NewTitle)) return;
-        TodoSvc.Add(NewTitle);
+        TodoSvc.Add(NewTitle, NewPriority);
         NewTitle = string.Empty;
+        NewPriority = TodoPriority.Medium;
         Items = TodoSvc.GetAll();
     }
+
+    private static string PriorityLabel(TodoPriority p) => p switch
+    {
+        TodoPriority.High => "Hoog",
+        TodoPriority.Low => "Laag",
+        _ => "Middel"
+    };
+
+    private static string PriorityColor(TodoPriority p) => p switch
+    {
+        TodoPriority.High => "#cf222e",
+        TodoPriority.Low => "#57606a",
+        _ => "#bf8700"
+    };
 
     private void CompleteTodo(Guid id)
     {
