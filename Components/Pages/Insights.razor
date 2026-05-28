@@ -1,0 +1,105 @@
+@page "/insights"
+@rendermode InteractiveServer
+@inject TodoApp.Services.TodoService TodoSvc
+
+<PageTitle>Inzichten</PageTitle>
+
+<h2>📊 Productiviteitsinzichten</h2>
+
+@{
+    var data = TodoSvc.GetInsights();
+    var maxDay = data.CompletedLast7Days.Count == 0 ? 0 : data.CompletedLast7Days.Max(d => d.Count);
+    var completedThisWeek = data.CompletedLast7Days.Sum(d => d.Count);
+}
+
+@if (data.Total == 0)
+{
+    <p style="color:gray;">Nog geen todos om te analyseren. Voeg er eerst een paar toe op de <a href="/todos">Todo's</a>-pagina!</p>
+}
+else
+{
+    <!-- Kerncijfers -->
+    <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:32px;">
+        <div style="flex:1; min-width:140px; background:#f6f8fa; border:1px solid #d0d7de; border-radius:8px; padding:16px;">
+            <div style="font-size:2rem; font-weight:700; color:#24292f;">@data.Total</div>
+            <div style="color:#57606a; font-size:0.9rem;">Totaal</div>
+        </div>
+        <div style="flex:1; min-width:140px; background:#f6f8fa; border:1px solid #d0d7de; border-radius:8px; padding:16px;">
+            <div style="font-size:2rem; font-weight:700; color:#0969da;">@data.Open</div>
+            <div style="color:#57606a; font-size:0.9rem;">Open</div>
+        </div>
+        <div style="flex:1; min-width:140px; background:#f6f8fa; border:1px solid #d0d7de; border-radius:8px; padding:16px;">
+            <div style="font-size:2rem; font-weight:700; color:#1a7f37;">@data.Done</div>
+            <div style="color:#57606a; font-size:0.9rem;">Voltooid</div>
+        </div>
+        <div style="flex:1; min-width:140px; background:#f6f8fa; border:1px solid #d0d7de; border-radius:8px; padding:16px;">
+            <div style="font-size:2rem; font-weight:700; color:#8250df;">@completedThisWeek</div>
+            <div style="color:#57606a; font-size:0.9rem;">Deze week voltooid</div>
+        </div>
+    </div>
+
+    <!-- Voltooiingspercentage -->
+    <div style="max-width:600px; margin-bottom:32px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+            <span style="font-size:0.9rem; color:#57606a;">Voltooiingspercentage</span>
+            <span style="font-size:0.9rem; font-weight:600;">@($"{data.CompletionRate:P0}")</span>
+        </div>
+        <div style="background:#eaeef2; border-radius:8px; height:16px; overflow:hidden;">
+            <div style="height:100%; width:@($"{data.CompletionRate * 100:0.##}%"); background:#1a7f37; transition:width .3s;"></div>
+        </div>
+    </div>
+
+    <!-- Activiteit afgelopen 7 dagen -->
+    <div style="max-width:600px; margin-bottom:32px;">
+        <h3 style="font-size:1rem; margin-bottom:12px;">Voltooid afgelopen 7 dagen</h3>
+        <div style="display:flex; align-items:flex-end; gap:10px; height:140px; border-bottom:2px solid #d0d7de; padding-bottom:4px;">
+            @foreach (var day in data.CompletedLast7Days)
+            {
+                var height = maxDay == 0 ? 0 : (int)Math.Round(day.Count / (double)maxDay * 110);
+                <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%;">
+                    <span style="font-size:0.75rem; color:#57606a; margin-bottom:4px;">@day.Count</span>
+                    <div title="@day.Count voltooid"
+                         style="width:100%; max-width:36px; height:@(height)px; min-height:@(day.Count > 0 ? "4" : "0")px; background:#8250df; border-radius:4px 4px 0 0;"></div>
+                </div>
+            }
+        </div>
+        <div style="display:flex; gap:10px; margin-top:6px;">
+            @foreach (var day in data.CompletedLast7Days)
+            {
+                <div style="flex:1; text-align:center; font-size:0.7rem; color:#57606a;">@day.Day.ToString("dd/MM")</div>
+            }
+        </div>
+    </div>
+
+    <!-- Open todos per prioriteit -->
+    <div style="max-width:600px;">
+        <h3 style="font-size:1rem; margin-bottom:12px;">Open todos per prioriteit</h3>
+        <ul style="list-style:none; padding:0;">
+            @foreach (var (priority, count) in data.OpenByPriority.OrderByDescending(kv => kv.Key))
+            {
+                <li style="display:flex; align-items:center; gap:12px; padding:6px 0;">
+                    <span style="font-size:0.7rem; font-weight:600; padding:2px 8px; border-radius:10px; color:white; min-width:54px; text-align:center; background:@PriorityColor(priority);">
+                        @PriorityLabel(priority)
+                    </span>
+                    <span style="font-weight:600;">@count</span>
+                </li>
+            }
+        </ul>
+    </div>
+}
+
+@code {
+    private static string PriorityLabel(TodoPriority p) => p switch
+    {
+        TodoPriority.High => "Hoog",
+        TodoPriority.Low => "Laag",
+        _ => "Middel"
+    };
+
+    private static string PriorityColor(TodoPriority p) => p switch
+    {
+        TodoPriority.High => "#cf222e",
+        TodoPriority.Low => "#57606a",
+        _ => "#bf8700"
+    };
+}
